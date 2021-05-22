@@ -79,7 +79,7 @@ func (mm *MetaManager) Start() {
 func main() {
 	parseFlags()
 
-	m := manager.NewManager("/usr/local/bin/plex")
+	m := manager.NewManager("docker", "start", "-a", "plex")
 
 	router := http.NewServeMux()
 	router.HandleFunc("/", plexHandlerManager(m))

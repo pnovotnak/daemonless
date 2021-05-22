@@ -1,11 +1,10 @@
 #!/bin/bash
 #
-# This script is used by daemonless to invoke plex
+# This script is used to initialize the plex container, manager then starts and stops it
 
 docker \
-  run \
+  create \
   --name plex \
-  --rm \
   --mount type=bind,source=/plex/database/,target=/config \
   --mount type=bind,source=/plex/transcode/,target=/transcode \
   --mount type=bind,source=/var/media/,target=/data \

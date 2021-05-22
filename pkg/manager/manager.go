@@ -27,7 +27,7 @@ type Manager struct {
 	sync.RWMutex
 
 	// Command tell us how to start the daemon
-	Command string `yaml:"command"`
+	Command []string `yaml:"command"`
 
 	// cmd stores the current execution (if any)
 	cmd *exec.Cmd
@@ -38,7 +38,7 @@ type Manager struct {
 	stop  chan struct{}
 }
 
-func NewManager(command string) *Manager {
+func NewManager(command ...string) *Manager {
 	return &Manager{
 		RWMutex: sync.RWMutex{},
 		Command: command,
@@ -93,7 +93,7 @@ func (m *Manager) RunFor() error {
 	m.stop = make(chan struct{})
 	m.state = StateStarting
 	log.Println("starting command")
-	c := exec.Command(m.Command)
+	c := exec.Command(m.Command[0], m.Command[1:]...)
 	// TODO put these somewhere on disk
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
