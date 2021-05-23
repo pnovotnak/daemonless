@@ -3,10 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/pnovotnak/daemonless/pkg/manager"
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/pnovotnak/daemonless/pkg/manager"
+
+	_ "net/http/pprof"
 )
 
 var (

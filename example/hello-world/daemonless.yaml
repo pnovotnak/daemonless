@@ -6,4 +6,4 @@ managers:
   - url: "/plex"
     # The command to run
     command: [sh, -c, "sleep 99999"]
-    idle: 1s
+    idle: 0.5s

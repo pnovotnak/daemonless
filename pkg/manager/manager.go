@@ -18,14 +18,11 @@ import (
 
 const (
 	StateStopped = iota
-	// Starting state is confined entirely to Manager.Start()
-	// StateStarting
-
 	StateRunning
 	// StateTerminated is a special state that tells us not to start again
 	StateTerminated
-
-	DefaultDuration = time.Minute * 30
+	// Starting state is confined entirely to Manager.Start()
+	// StateStarting
 )
 
 type Config struct {
@@ -78,7 +75,7 @@ type Manager struct {
 	// state stores the daemon's current state
 	state int
 	// timer records when the child should be stopped, stop provides a way to terminate manager goroutines
-	timer *time.Timer
+	timer *time.Ticker
 	watch chan error
 	stop  chan struct{}
 
@@ -109,9 +106,8 @@ func (m *Manager) expire() {
 	case <-m.timer.C:
 		log.Println("timer expired")
 		_ = m.Stop()
-	case <-m.stop:
-		return
 	case err = <-m.watch:
+		log.Println("watch fired")
 		m.Lock()
 		m.state = StateStopped
 		m.Unlock()
@@ -120,6 +116,9 @@ func (m *Manager) expire() {
 		} else {
 			log.Println("child exited with code 0")
 		}
+	case <-m.stop:
+		log.Println("stop fired")
+		return
 	}
 }
 
@@ -132,8 +131,8 @@ func (m *Manager) GetStatus() int {
 func (m *Manager) Init() {
 	m.RWMutex = sync.RWMutex{}
 	m.state = 0
-	m.timer = time.NewTimer(DefaultDuration)
-	// stop is initialized each time the manager is started
+	m.timer = time.NewTicker(m.Idle)
+	m.stop = make(chan struct{})
 	m.notify = make(chan os.Signal, 2)
 	m.signalHandler()
 }
@@ -150,7 +149,7 @@ func (m *Manager) Start() error {
 		// don't start again once terminated
 		return nil
 	}
-	m.timer.Reset(DefaultDuration)
+	m.timer.Reset(m.Idle)
 	if m.state == StateRunning {
 		// we're already in a good state
 		return nil
@@ -199,7 +198,9 @@ func (m *Manager) Stop() error {
 	close(m.stop)
 	log.Println("stopping child")
 	err := syscall.Kill(-m.cmd.Process.Pid, syscall.SIGTERM)
-	m.state = StateStopped
+	if m.state != StateTerminated {
+		m.state = StateStopped
+	}
 	return err
 }
 

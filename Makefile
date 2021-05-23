@@ -5,3 +5,7 @@ GOARCH := amd64
 
 build:
 	GOOS=$(GOOS) GOARCH=$(GOARCH) go build -gcflags="all=-N -l" -o build/$(GOOS)-$(GOARCH) github.com/pnovotnak/daemonless
+
+# This only runs on linux
+test:
+	go test ./...
