@@ -4,7 +4,10 @@ package manager
 
 import (
 	"errors"
+	"gopkg.in/yaml.v3"
+	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -24,6 +27,39 @@ const (
 
 	DefaultDuration = time.Minute * 30
 )
+
+type Config struct {
+	RootURL  string     `yaml:"root_url"`
+	Managers []*Manager `yaml:"managers"`
+}
+
+func (c *Config) initObjects() {
+	for _, m := range c.Managers {
+		m.Init()
+	}
+}
+
+func LoadConfig(path string) (*Config, error) {
+	config := &Config{}
+	configRaw, err := ioutil.ReadFile(path)
+	if err != nil {
+		return config, err
+	}
+	err = yaml.Unmarshal(configRaw, config)
+	if err != nil {
+		return config, err
+	} else if len(config.Managers) == 0 {
+		return config, errors.New("malformed configuration")
+	}
+	config.initObjects()
+	return config, nil
+}
+
+func (c *Config) RegisterHTTPHandlers(mux *http.ServeMux) {
+	for _, m := range c.Managers {
+		m.RegisterHTTPHandler(mux, c.RootURL)
+	}
+}
 
 // Manager is a state machine that manages daemon state
 type Manager struct {
@@ -167,4 +203,13 @@ func (m *Manager) Terminate() error {
 	m.state = StateTerminated
 	m.Unlock()
 	return m.Stop()
+}
+func (m *Manager) RegisterHTTPHandler(mux *http.ServeMux, path string) {
+	url := path + m.URL
+	log.Println("registering manager at:", url)
+	mux.HandleFunc(url, func(w http.ResponseWriter, r *http.Request) {
+		if err := m.Start(); err != nil {
+			log.Println("manager error:", err)
+		}
+	})
 }
