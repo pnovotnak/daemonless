@@ -16,6 +16,8 @@ func TestManagerLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	err = c.Managers[0].Start()
+	if err != nil {
+		t.Fatal(err)
+	}
 	time.Sleep(time.Second)
-
 }
