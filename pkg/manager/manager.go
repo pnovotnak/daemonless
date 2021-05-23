@@ -123,6 +123,12 @@ func (m *Manager) expire() {
 	}
 }
 
+func (m *Manager) GetStatus() int {
+	m.RLock()
+	defer m.RUnlock()
+	return m.state
+}
+
 func (m *Manager) Init() {
 	m.RWMutex = sync.RWMutex{}
 	m.state = 0

@@ -1,0 +1,9 @@
+---
+# The root url where managers will be registered
+root_url: "/daemonless"
+managers:
+  # Full path will be "/daemonless/hello-world"
+  - url: "/plex"
+    # The command to run
+    command: [sh, -c, "sleep 99999"]
+    idle: 1s
