@@ -6,95 +6,39 @@ import (
 	"github.com/pnovotnak/daemonless/pkg/manager"
 	"log"
 	"net/http"
-	"os"
-	"os/signal"
-	"sync"
-	"syscall"
 	"time"
 )
 
 var (
-	bind = "localhost:2000"
+	config = "./daemonless.yaml"
+	bind   = "localhost:2000"
+	idle   = time.Minute * 10
 )
 
 func parseFlags() {
-	flag.Parse()
+	flag.StringVar(&config, "config", config, "config")
 	flag.StringVar(&bind, "bind", bind, "where to bind")
-}
-
-func plexHandlerManager(manager *manager.Manager) func(w http.ResponseWriter, r *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if err := manager.RunFor(); err != nil {
-			log.Println("manager error:", err)
-		}
-	}
-}
-
-type MetaManager struct {
-	sync.Mutex
-
-	notify   chan os.Signal
-	managers []*manager.Manager
-}
-
-func NewMetaManager() *MetaManager {
-	return &MetaManager{
-		Mutex:    sync.Mutex{},
-		notify:   make(chan os.Signal, 2),
-		managers: []*manager.Manager{},
-	}
-}
-
-func (mm *MetaManager) Add(m *manager.Manager) {
-	mm.Lock()
-	defer mm.Unlock()
-	mm.managers = append(mm.managers, m)
-}
-
-func (mm *MetaManager) Stop() {
-	mm.Lock()
-	defer mm.Unlock()
-	var err error
-	for _, m := range mm.managers {
-		if err = m.Stop(); err != nil {
-			log.Println("error stopping manager:", err)
-		}
-	}
-}
-
-func (mm *MetaManager) Start() {
-	go func() {
-		sig := <-mm.notify
-		switch sig {
-		case syscall.SIGINT, syscall.SIGTERM:
-			log.Println("got signal")
-			mm.Stop()
-			// Without this we never exit
-			os.Exit(0)
-		}
-	}()
-	signal.Notify(mm.notify, os.Interrupt, syscall.SIGTERM)
+	flag.DurationVar(&idle, "idle", idle, "how long to remain idle before stopping")
+	flag.Parse()
 }
 
 func main() {
 	parseFlags()
 
-	m := manager.NewManager("docker", "start", "-a", "plex")
+	conf, err := manager.LoadConfig(config)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	router := http.NewServeMux()
-	router.HandleFunc("/", plexHandlerManager(m))
+	conf.RegisterHTTPHandlers(router)
 	server := &http.Server{
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		IdleTimeout:  10 * time.Second,
+		ReadTimeout:  500 * time.Millisecond,
+		WriteTimeout: 500 * time.Millisecond,
+		IdleTimeout:  500 * time.Millisecond,
 		Handler:      router,
 		Addr:         bind,
 	}
-
-	// handles signal routing
-	mm := NewMetaManager()
-	mm.Add(m)
-	mm.Start()
 
 	fmt.Printf("Starting HTTPS server on %s\n", server.Addr)
 	log.Fatal(server.ListenAndServe())

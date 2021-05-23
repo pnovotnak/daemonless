@@ -1,0 +1,9 @@
+---
+# The root url where managers will be registered
+root_url: "/daemonless"
+managers:
+  # Full path will be "/daemonless/plex"
+  - url: "/plex"
+    # The command to run
+    command: [docker, start, -a, plex]
+    idle: 10m
